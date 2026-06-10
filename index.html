@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G30 Criativos Studio | Mega Feirão</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,600;0,700;0,900;1,800&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: Dark Premium (Forest Green, Black, Orange, Purple) -->
+    <!-- Application Structure Plan: O SPA está arquitetado como um "Estúdio de Criação e Comando" em 4 painéis de navegação: 1. Estratégia Base (Visão de métricas), 2. Linha do Tempo (Planeamento de fases), 3. Estúdio de Criativos (Guia visual, Método G30 interativo e Gerador de Scripts) e 4. Auditoria & Metas (Checklist e a Calculadora Avançada de Tráfego sugerida, que recalcula o orçamento com base no CPL e na Taxa de Conversão). Este formato permite gerir todo o feirão num único ecrã, com um tema escuro luxuoso que melhora a imersão e o foco do utilizador. -->
+    <!-- Visualization & Content Choices: 
+         1. Proporção de Conteúdo -> Objetivo: Comparar -> Método: Gráfico de Rosca (Doughnut) -> Interação: Hover com Tooltips -> Justificação: Demonstra visualmente a regra 50/50 (Pago vs Orgânico). -> Biblioteca: Chart.js.
+         2. Fases do Feirão -> Objetivo: Organizar -> Método: Abas Laterais Dinâmicas -> Interação: Alternância de painéis -> Justificação: Evita sobrecarga de texto vertical. -> Biblioteca: Vanilla JS.
+         3. Método G30 -> Objetivo: Relações -> Método: Quadrante com Layout CSS Absoluto -> Interação: Clique nos eixos (Meta, Plano, etc.) para carregar descrições -> Justificação: Substitui a necessidade de SVG mantendo o design da bússola interativa. -> Biblioteca: Vanilla JS + HTML/CSS.
+         4. Calculadora Avançada -> Objetivo: Relacionamentos Numéricos -> Método: Sliders Range -> Interação: Cálculos em tempo real de Leads, CAC e Orçamento -> Justificação: Responde ao pedido do utilizador ("100 reais é muito baixo") introduzindo variáveis reais de CPL e Conversão. -> Biblioteca: Vanilla JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: radial-gradient(circle at 50% 20%, #0d281c 0%, #040806 100%); 
+            background-attachment: fixed;
+            scroll-behavior: smooth; 
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+        
+        .chart-container { 
+            position: relative; 
+            width: 100%; 
+            max-width: 450px; 
+            margin-left: auto; 
+            margin-right: auto; 
+            height: 300px; 
+            max-height: 350px; 
+        }
+
+        .hide { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #050b08; }
+        ::-webkit-scrollbar-thumb { background: #1a382a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #ea580c; }
+
+        .glow-orange { box-shadow: 0 0 25px rgba(234, 88, 12, 0.15); }
+        .glow-purple { box-shadow: 0 0 25px rgba(147, 51, 234, 0.15); }
+
+        .icon-check::before { content: "✅"; }
+        .icon-copy::before { content: "📋"; }
+    </style>
+</head>
+<body class="antialiased selection:bg-orange-600 selection:text-white pb-24">
+
+    <div id="toastNotification" class="fixed top-8 right-4 z-[110] transform translate-y-[-100px] opacity-0 transition-all duration-300 ease-out pointer-events-none">
+        <div class="bg-gradient-to-r from-orange-600 to-amber-500 text-white font-bold px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-orange-400/20">
+            <span class="text-xl icon-copy"></span>
+            <span id="toastText">Copiado com sucesso!</span>
+        </div>
+    </div>
+
+    <header class="bg-[#050b08]/95 backdrop-blur shadow-xl sticky top-0 z-50 border-b border-[#1a382a]/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3 w-full lg:w-auto">
+                <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl flex items-center justify-center text-white font-black italic shadow-lg text-lg">G30</div>
+                <div class="flex flex-col justify-center">
+                    <span class="text-[10px] text-slate-400 uppercase tracking-[0.2em] mb-0.5 font-bold">Criativos & Diretrizes</span>
+                    <h1 class="text-xl font-black tracking-tight text-white uppercase italic leading-none">Studio <span class="text-orange-500">Feirão</span></h1>
+                </div>
+            </div>
+            
+            <nav class="flex w-full lg:w-auto bg-black/50 p-1.5 rounded-xl border border-[#1a382a] overflow-x-auto snap-x">
+                <button onclick="switchTab('tab-estrategia')" id="btn-estrategia" class="tab-btn snap-start bg-orange-600 text-white px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all shadow-md">Estratégia</button>
+                <button onclick="switchTab('tab-fases')" id="btn-fases" class="tab-btn snap-start text-slate-400 hover:text-white hover:bg-white/5 px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all">Linha do Tempo</button>
+                <button onclick="switchTab('tab-criativos')" id="btn-criativos" class="tab-btn snap-start text-slate-400 hover:text-white hover:bg-white/5 px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all">Estúdio Mídia</button>
+                <button onclick="switchTab('tab-checklist')" id="btn-checklist" class="tab-btn snap-start text-slate-400 hover:text-white hover:bg-white/5 px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all">Auditoria & Metas</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+        <!-- TAB 1: ESTRATÉGIA -->
+        <section id="tab-estrategia" class="tab-content fade-in space-y-12">
+            <div class="text-center max-w-4xl mx-auto py-6">
+                <span class="bg-orange-600/20 text-orange-400 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest border border-orange-500/30 inline-block mb-4">Fundamentos G30</span>
+                <h2 class="text-4xl md:text-5xl font-black text-white uppercase italic tracking-tighter drop-shadow-lg leading-tight">
+                    Os 3 Pilares da <span class="text-orange-500">Conversão Absoluta</span>
+                </h2>
+                <p class="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
+                    A espinha dorsal para gerar um pico massivo de vendas em três dias e liquidar o stock parado.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-[#0a1812] border border-[#1a382a] p-8 rounded-2xl shadow-xl hover:border-orange-500/50 transition duration-300 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-orange-600/10 rounded-full blur-3xl group-hover:bg-orange-600/20 transition"></div>
+                    <div class="text-4xl mb-4">⏱️</div>
+                    <h4 class="text-xl font-black text-white uppercase italic tracking-tight mb-2">1. Urgência Real</h4>
+                    <p class="text-slate-400 text-sm leading-relaxed">"Amanhã será tarde demais." A comunicação deve transmitir que as taxas da financeira expiram irrevogavelmente no domingo.</p>
+                </div>
+                <div class="bg-[#0a1812] border border-[#1a382a] p-8 rounded-2xl shadow-xl hover:border-purple-500/50 transition duration-300 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-purple-600/10 rounded-full blur-3xl group-hover:bg-purple-600/20 transition"></div>
+                    <div class="text-4xl mb-4">🔥</div>
+                    <h4 class="text-xl font-black text-white uppercase italic tracking-tight mb-2">2. Escassez Absoluta</h4>
+                    <p class="text-slate-400 text-sm leading-relaxed">"Apenas 100 lojas em todo o país." O gatilho de exclusividade e a limitação de crédito aceleram a decisão de compra na mesa.</p>
+                </div>
+                <div class="bg-[#0a1812] border border-[#1a382a] p-8 rounded-2xl shadow-xl hover:border-emerald-500/50 transition duration-300 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-600/10 rounded-full blur-3xl group-hover:bg-emerald-600/20 transition"></div>
+                    <div class="text-4xl mb-4">✨</div>
+                    <h4 class="text-xl font-black text-white uppercase italic tracking-tight mb-2">3. Emoção de Consumo</h4>
+                    <p class="text-slate-400 text-sm leading-relaxed">Não venda chaparia; venda o momento da entrega das chaves. O foco é a evolução e o conforto que o carro traz para a família.</p>
+                </div>
+            </div>
+
+            <div class="bg-[#050b08] border border-[#1a382a] rounded-3xl p-8 lg:p-12 shadow-2xl">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <span class="text-orange-500 font-black text-[10px] uppercase tracking-widest mb-2 block">Matriz de Distribuição</span>
+                        <h3 class="text-3xl font-black text-white uppercase italic mb-6">A Regra de Ouro do <span class="text-orange-500">Conteúdo</span></h3>
+                        
+                        <div class="space-y-6">
+                            <div class="bg-[#0a1812] p-5 rounded-xl border-l-4 border-orange-500">
+                                <strong class="text-white text-base block uppercase tracking-wider mb-1">Tráfego Pago (50%)</strong>
+                                <span class="text-slate-400 text-sm block leading-relaxed">Anúncios cirúrgicos e patrocinados. Ganchos fortes nos 3 primeiros segundos direcionando o fluxo para a equipa de pré-vendas (SDR).</span>
+                            </div>
+                            <div class="bg-[#0a1812] p-5 rounded-xl border-l-4 border-purple-500">
+                                <strong class="text-white text-base block uppercase tracking-wider mb-1">Orgânico Bruto (50%)</strong>
+                                <span class="text-slate-400 text-sm block leading-relaxed">"A vida como ela é". Alta frequência de Reels documentando os bastidores: negociações reais, preparação de viaturas e fluxo de clientes.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-black/30 p-6 rounded-2xl border border-white/5">
+                        <div class="chart-container">
+                            <canvas id="contentMixChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: FASES DO FEIRÃO -->
+        <section id="tab-fases" class="tab-content hide fade-in space-y-8">
+            <div class="text-center max-w-4xl mx-auto py-6">
+                <span class="bg-purple-600/20 text-purple-400 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest border border-purple-500/30 inline-block mb-4">Mapeamento Tático</span>
+                <h2 class="text-3xl md:text-5xl font-black text-white uppercase italic tracking-tighter drop-shadow-lg leading-tight">
+                    Linha do Tempo de <span class="text-purple-500">Ativação</span>
+                </h2>
+                <p class="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
+                    Navegue pelas 4 fases cruciais de conteúdo. Publique o criativo certo no momento em que o algoritmo e o público estão mais quentes.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-4 flex flex-col space-y-4">
+                    <button onclick="showPhase(0)" id="btn-phase-0" class="phase-btn text-left p-6 rounded-2xl border-2 border-orange-500 bg-[#0a1812] transition-all font-black shadow-lg glow-orange">
+                        <div class="text-[10px] uppercase tracking-widest text-orange-500 mb-2">Fase 01</div>
+                        <div class="text-lg text-white">Aquecimento</div>
+                        <div class="text-xs text-slate-400 font-normal mt-2">15 a 21 de Junho</div>
+                    </button>
+                    <button onclick="showPhase(1)" id="btn-phase-1" class="phase-btn text-left p-6 rounded-2xl border-2 border-[#1a382a] bg-[#050b08] hover:border-slate-600 transition-all font-bold text-slate-300">
+                        <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Fase 02</div>
+                        <div class="text-lg">Pressão & Agenda</div>
+                        <div class="text-xs text-slate-500 font-normal mt-2">22 a 24 de Junho</div>
+                    </button>
+                    <button onclick="showPhase(2)" id="btn-phase-2" class="phase-btn text-left p-6 rounded-2xl border-2 border-[#1a382a] bg-[#050b08] hover:border-slate-600 transition-all font-bold text-slate-300">
+                        <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Fase 03</div>
+                        <div class="text-lg">O Feirão ao Vivo</div>
+                        <div class="text-xs text-slate-500 font-normal mt-2">25, 26 e 27 de Junho</div>
+                    </button>
+                    <button onclick="showPhase(3)" id="btn-phase-3" class="phase-btn text-left p-6 rounded-2xl border-2 border-[#1a382a] bg-[#050b08] hover:border-slate-600 transition-all font-bold text-slate-300">
+                        <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Fase 04</div>
+                        <div class="text-lg">Repescagem & Fecho</div>
+                        <div class="text-xs text-slate-500 font-normal mt-2">28 a 30 de Junho</div>
+                    </button>
+                </div>
+
+                <div class="lg:col-span-8">
+                    <div id="phase-detail-panel" class="bg-[#0a1812] rounded-3xl shadow-2xl border border-[#1a382a] p-8 md:p-10 min-h-[500px]"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: ESTÚDIO DE CRIATIVOS -->
+        <section id="tab-criativos" class="tab-content hide fade-in space-y-12">
+            
+            <!-- Como Gravar (From Snippet) -->
+            <div class="bg-[#0a1812] border border-orange-500/40 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
+                <div class="absolute -top-24 -right-24 w-80 h-80 bg-orange-600/10 blur-[90px] rounded-full pointer-events-none"></div>
+                
+                <div class="mb-10 text-center lg:text-left">
+                    <span class="bg-orange-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest inline-block mb-4">Estratégia de Aquecimento</span>
+                    <h3 class="text-3xl md:text-4xl font-black text-white uppercase italic tracking-tighter leading-tight">
+                        Como gravar o vídeo institucional <br class="hidden lg:block"/>
+                        <span class="text-orange-500">de convite para o feirão</span>
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                    <div class="bg-[#050b08] p-6 rounded-2xl border border-[#1a382a] hover:border-orange-500/30 transition duration-300">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="bg-orange-600 w-10 h-10 rounded-xl flex items-center justify-center font-black text-white">01</div>
+                            <h4 class="text-xl font-bold text-white uppercase italic tracking-tight">Mantenha a sua Identidade</h4>
+                        </div>
+                        <p class="text-slate-400 text-sm leading-relaxed">
+                            A internet recompensa a autenticidade. Evite adotar um "tom de locutor" se não for o seu estilo. Fale com a câmara como se falasse com um cliente que acabou de entrar no seu pátio.
+                        </p>
+                    </div>
+
+                    <div class="bg-[#050b08] p-6 rounded-2xl border border-[#1a382a] hover:border-orange-500/30 transition duration-300">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="bg-orange-600 w-10 h-10 rounded-xl flex items-center justify-center font-black text-white">02</div>
+                            <h4 class="text-xl font-bold text-white uppercase italic tracking-tight">Gatilhos Poderosos</h4>
+                        </div>
+                        <p class="text-slate-400 text-sm leading-relaxed mb-3">Explore a urgência. Ancore sempre a sua mensagem neste script mestre:</p>
+                        <div class="bg-[#133325] p-3 rounded-lg border border-orange-500/20 italic text-orange-200 text-xs leading-relaxed flex justify-between items-center gap-3">
+                            <span>"Fechamos uma parceria com o C6 Bank... e estamos participando do Feirão G30. São 100 lojas selecionadas do Brasil inteiro."</span>
+                            <button onclick="copyRawText('Fechamos uma parceria com o C6 Bank... e estamos participando do Feirão G30. São 100 lojas selecionadas do Brasil inteiro.')" class="bg-orange-600 hover:bg-orange-500 text-white px-2.5 py-1.5 rounded text-[10px] font-bold tracking-wider shrink-0 transition">COPIAR</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#050b08] p-6 rounded-2xl border border-[#1a382a] hover:border-orange-500/30 transition duration-300">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="bg-orange-600 w-10 h-10 rounded-xl flex items-center justify-center font-black text-white">03</div>
+                            <h4 class="text-xl font-bold text-white uppercase italic tracking-tight">Volume é o Jogo</h4>
+                        </div>
+                        <p class="text-slate-400 text-sm leading-relaxed">
+                            O algoritmo precisa de dados. Grave de <strong>5 a 10 conteúdos diferentes</strong> apenas para a fase de convite. Mude os carros de fundo, varie as abordagens e envolva vários membros da equipa.
+                        </p>
+                    </div>
+
+                    <div class="bg-[#050b08] p-6 rounded-2xl border border-[#1a382a] hover:border-orange-500/30 transition duration-300">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="bg-orange-600 w-10 h-10 rounded-xl flex items-center justify-center font-black text-white">04</div>
+                            <h4 class="text-xl font-bold text-white uppercase italic tracking-tight">Formato Orgânico</h4>
+                        </div>
+                        <p class="text-slate-400 text-sm leading-relaxed">
+                            Publique a "vida como ela é". Grave vídeos crus, telemóvel na vertical, sem cortes mirabolantes. Use apenas um texto curto (headline) colado no ecrã nos primeiros 7 segundos.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Hook Builder -->
+            <div class="bg-[#050b08] border border-orange-500/30 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
+                <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-orange-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+                <div class="text-center mb-8 relative z-10">
+                    <span class="bg-orange-500/20 text-orange-400 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest border border-orange-500/20 mb-3 inline-block">App do Estúdio</span>
+                    <h3 class="text-3xl md:text-4xl font-black text-white uppercase italic">Inteligência do Gideão <span class="text-orange-500">Express</span></h3>
+                    <p class="text-slate-400 text-sm mt-2 max-w-xl mx-auto">Configure os campos abaixo para gerar um script validado e pronto a ler no seu teleprompter.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 relative z-10">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">1. Veículo Isca</label>
+                        <select id="builderModel" onchange="updateGeneratedScript()" class="w-full bg-[#0a1812] border border-[#1a382a] text-white rounded-xl py-3.5 px-4 outline-none focus:border-orange-500 text-sm font-semibold transition">
+                            <option value="Hatch">Citadino / Hatchback</option>
+                            <option value="SUV">SUV / Familiar</option>
+                            <option value="Sedan">Sedan Premium</option>
+                            <option value="Picape">Picape / Trabalho</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">2. Nome do Stand</label>
+                        <input type="text" id="builderStore" value="Nossa Loja" oninput="updateGeneratedScript()" class="w-full bg-[#0a1812] border border-[#1a382a] text-white rounded-xl py-3.5 px-4 outline-none focus:border-orange-500 text-sm font-semibold transition placeholder-slate-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">3. Gatilho Mestre</label>
+                        <select id="builderTone" onchange="updateGeneratedScript()" class="w-full bg-[#0a1812] border border-[#1a382a] text-white rounded-xl py-3.5 px-4 outline-none focus:border-orange-500 text-sm font-semibold transition">
+                            <option value="emocao">Conquista & Emoção</option>
+                            <option value="escassez">Escassez Absoluta (Restam X)</option>
+                            <option value="preco">Agressividade em Preço</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-black/60 border border-orange-500/30 rounded-2xl p-6 md:p-8 relative z-10 glow-orange">
+                    <h4 class="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-3 border-b border-orange-500/20 pb-2">Roteiro Otimizado para Leitura:</h4>
+                    <p id="generatedScriptText" class="text-white text-lg leading-relaxed italic">A gerar script...</p>
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="copySpecificText('generatedScriptText')" class="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black text-xs uppercase tracking-wider py-3 px-6 rounded-xl transition shadow-lg flex items-center gap-2">
+                            <span>Copiar Roteiro</span> <span class="icon-copy"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- O Método G30 -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                <div class="lg:col-span-5 bg-[#0a1812] border border-[#1a382a] rounded-3xl p-8 shadow-2xl flex flex-col justify-between overflow-hidden relative">
+                    <div class="absolute inset-0 bg-cover bg-center opacity-10 mix-blend-luminosity" style="background-image: url('https://images.unsplash.com/photo-1546182990-dffeafbe841d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80')"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-[#050b08] via-transparent to-[#050b08]"></div>
+                    
+                    <div class="text-center relative z-10">
+                        <h3 class="text-2xl font-black text-white uppercase italic tracking-wider mb-2">O Método <span class="text-orange-500">G30</span></h3>
+                        <p class="text-xs text-slate-400">Clique na bússola estratégica para ativar os painéis de conhecimento operacionais.</p>
+                    </div>
+                    
+                    <div class="relative w-full aspect-square max-w-[280px] mx-auto my-8 flex items-center justify-center z-10">
+                        <!-- Cross Lines HTML -->
+                        <div class="absolute w-full h-px bg-white/10"></div>
+                        <div class="absolute h-full w-px bg-white/10"></div>
+                        
+                        <button onclick="selectG30Force('meta')" id="quad-meta" class="absolute top-0 w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-orange-500/50 bg-[#133325] flex flex-col items-center justify-center shadow-lg transition-transform hover:scale-105 z-20">
+                            <span class="text-xs md:text-sm font-black uppercase tracking-widest text-orange-400">Meta</span>
+                        </button>
+                        
+                        <button onclick="selectG30Force('plano')" id="quad-plano" class="absolute right-0 w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-[#1a382a] bg-black/50 flex flex-col items-center justify-center shadow-lg transition-transform hover:scale-105 z-20">
+                            <span class="text-xs md:text-sm font-black uppercase tracking-widest text-slate-400">Plano</span>
+                        </button>
+                        
+                        <button onclick="selectG30Force('implementacao')" id="quad-implementacao" class="absolute bottom-0 w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-[#1a382a] bg-black/50 flex flex-col items-center justify-center shadow-lg transition-transform hover:scale-105 z-20">
+                            <span class="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">Implemen-<br>tação</span>
+                        </button>
+                        
+                        <button onclick="selectG30Force('controle')" id="quad-controle" class="absolute left-0 w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-[#1a382a] bg-black/50 flex flex-col items-center justify-center shadow-lg transition-transform hover:scale-105 z-20">
+                            <span class="text-xs md:text-sm font-black uppercase tracking-widest text-slate-400">Controlo</span>
+                        </button>
+                        
+                        <div class="absolute font-black text-2xl md:text-3xl text-orange-500 uppercase tracking-tighter drop-shadow-2xl z-30 bg-[#050b08] px-3 py-1 rounded-lg border border-orange-500/30">
+                            Feirão
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 bg-[#050b08] border border-[#1a382a] rounded-3xl p-8 shadow-2xl flex flex-col justify-center">
+                    <div id="g30-force-content" class="fade-in min-h-[250px]"></div>
+                </div>
+            </div>
+
+            <!-- Mapa Mental -->
+            <div class="bg-[#0a1812] border border-[#1a382a] rounded-3xl p-8 md:p-12 shadow-2xl">
+                <div class="text-center mb-10">
+                    <span class="bg-purple-600/20 text-purple-400 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest border border-purple-500/30 inline-block mb-3">Mapa Mental</span>
+                    <h3 class="text-3xl font-black text-white uppercase italic tracking-tighter">Planeamento <span class="text-purple-500">Estratégico</span></h3>
+                    <p class="text-slate-400 text-sm mt-2">Clique nas categorias de produto para revelar as estratégias de abordagem.</p>
+                </div>
+
+                <div class="flex flex-col gap-6 max-w-4xl mx-auto">
+                    <!-- Central Hub -->
+                    <div class="flex justify-center mb-4">
+                        <div class="bg-purple-600 text-white px-8 py-3 rounded-2xl shadow-[0_0_20px_rgba(147,51,234,0.3)] border border-purple-400 flex items-center gap-3">
+                            <span class="text-2xl">🚘</span>
+                            <span class="font-black tracking-widest uppercase">Veículo no Pátio</span>
+                        </div>
+                    </div>
+
+                    <!-- Branches -->
+                    <div onclick="selectMindmapNode(0)" id="mindmap-row-0" class="mindmap-node flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 md:p-5 border-2 border-purple-500 bg-purple-900/10 rounded-2xl cursor-pointer transition-all">
+                        <div class="md:w-1/3 flex items-center gap-3 font-bold text-white text-sm">
+                            <span class="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.8)]"></span> Qualidades do Carro
+                        </div>
+                        <div class="hidden md:block text-slate-600 font-black">➔</div>
+                        <div class="md:w-2/3 bg-black/40 p-4 rounded-xl border border-white/5 text-xs text-slate-300 flex justify-between items-center">
+                            <span>Abordagem: <strong class="text-purple-400 font-bold uppercase tracking-wider">Chamada Específica</strong></span>
+                            <span class="text-white font-bold text-[10px] bg-purple-600/30 px-3 py-1 rounded-full">Exibir ↳</span>
+                        </div>
+                    </div>
+
+                    <div onclick="selectMindmapNode(1)" id="mindmap-row-1" class="mindmap-node flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 md:p-5 border-2 border-transparent bg-black/20 rounded-2xl cursor-pointer transition-all hover:border-[#1a382a]">
+                        <div class="md:w-1/3 flex items-center gap-3 font-bold text-white text-sm">
+                            <span class="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></span> Perfis & Ticket
+                        </div>
+                        <div class="hidden md:block text-slate-600 font-black">➔</div>
+                        <div class="md:w-2/3 bg-black/40 p-4 rounded-xl border border-white/5 text-xs text-slate-300 flex justify-between items-center">
+                            <span>Abordagem: <strong class="text-blue-400 font-bold uppercase tracking-wider">Chamada por Perfil</strong></span>
+                            <span class="text-white font-bold text-[10px] bg-blue-600/30 px-3 py-1 rounded-full">Exibir ↳</span>
+                        </div>
+                    </div>
+
+                    <div onclick="selectMindmapNode(2)" id="mindmap-row-2" class="mindmap-node flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 md:p-5 border-2 border-transparent bg-black/20 rounded-2xl cursor-pointer transition-all hover:border-[#1a382a]">
+                        <div class="md:w-1/3 flex items-center gap-3 font-bold text-white text-sm">
+                            <span class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span> Oportunidade Única
+                        </div>
+                        <div class="hidden md:block text-slate-600 font-black">➔</div>
+                        <div class="md:w-2/3 bg-black/40 p-4 rounded-xl border border-white/5 text-xs text-slate-300 flex justify-between items-center">
+                            <span>Abordagem: <strong class="text-red-400 font-bold uppercase tracking-wider">Foco na Emoção Crítica</strong></span>
+                            <span class="text-white font-bold text-[10px] bg-red-600/30 px-3 py-1 rounded-full">Exibir ↳</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mindmap-script-panel" class="mt-8 p-6 bg-[#050b08] border border-purple-500/20 rounded-2xl fade-in text-sm shadow-inner glow-purple"></div>
+            </div>
+        </section>
+
+        <!-- TAB 4: AUDITORIA & METAS (Calculadora Avançada) -->
+        <section id="tab-checklist" class="tab-content hide fade-in space-y-12">
+            <div class="text-center max-w-4xl mx-auto py-6">
+                <span class="bg-emerald-600/20 text-emerald-400 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest border border-emerald-500/30 inline-block mb-4">Operação Financeira</span>
+                <h2 class="text-4xl md:text-5xl font-black text-white uppercase italic tracking-tighter drop-shadow-lg leading-tight">
+                    Auditoria de <span class="text-emerald-500">Metas & Tráfego</span>
+                </h2>
+                <p class="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
+                    Garanta a execução das tarefas e utilize o nosso simulador avançado para projetar o investimento real de anúncios baseado no CPL e na performance da sua equipa.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                <!-- Checklist -->
+                <div class="lg:col-span-5 bg-[#0a1812] border border-[#1a382a] rounded-3xl p-8 shadow-2xl">
+                    <div class="flex justify-between items-end mb-4">
+                        <h3 class="text-xl font-black text-white uppercase italic tracking-wide">Checklist da Equipa</h3>
+                        <span id="progress-text" class="text-[10px] font-black bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20">0% CONCLUÍDO</span>
+                    </div>
+                    <div class="w-full bg-[#050b08] rounded-full h-2.5 mb-8 border border-[#1a382a]">
+                        <div id="progress-bar" class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-2.5 rounded-full transition-all duration-500 w-0 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                    </div>
+
+                    <ul class="space-y-3" id="checklist-items">
+                        <li class="flex items-start gap-4 p-4 bg-[#050b08] hover:bg-[#08130d] border border-[#1a382a] hover:border-emerald-500/30 rounded-xl cursor-pointer transition group" onclick="toggleCheck('chk1')">
+                            <input type="checkbox" id="chk1" class="mt-0.5 w-5 h-5 text-emerald-500 bg-black border-slate-600 rounded accent-emerald-500 cursor-pointer" onclick="event.stopPropagation(); updateProgress()">
+                            <label class="text-slate-300 text-xs leading-relaxed cursor-pointer select-none">Vídeos de convite gravados em lote e validados até <strong class="text-emerald-400">14/06</strong>.</label>
+                        </li>
+                        <li class="flex items-start gap-4 p-4 bg-[#050b08] hover:bg-[#08130d] border border-[#1a382a] hover:border-emerald-500/30 rounded-xl cursor-pointer transition group" onclick="toggleCheck('chk2')">
+                            <input type="checkbox" id="chk2" class="mt-0.5 w-5 h-5 text-emerald-500 bg-black border-slate-600 rounded accent-emerald-500 cursor-pointer" onclick="event.stopPropagation(); updateProgress()">
+                            <label class="text-slate-300 text-xs leading-relaxed cursor-pointer select-none">Número de WhatsApp Business isolado configurado para o Feirão (evita misturar leads).</label>
+                        </li>
+                        <li class="flex items-start gap-4 p-4 bg-[#050b08] hover:bg-[#08130d] border border-[#1a382a] hover:border-emerald-500/30 rounded-xl cursor-pointer transition group" onclick="toggleCheck('chk3')">
+                            <input type="checkbox" id="chk3" class="mt-0.5 w-5 h-5 text-emerald-500 bg-black border-slate-600 rounded accent-emerald-500 cursor-pointer" onclick="event.stopPropagation(); updateProgress()">
+                            <label class="text-slate-300 text-xs leading-relaxed cursor-pointer select-none">Treino técnico: vendedores habituados a gravar "vida como ela é" com telemóvel na horizontal.</label>
+                        </li>
+                        <li class="flex items-start gap-4 p-4 bg-[#050b08] hover:bg-[#08130d] border border-[#1a382a] hover:border-emerald-500/30 rounded-xl cursor-pointer transition group" onclick="toggleCheck('chk4')">
+                            <input type="checkbox" id="chk4" class="mt-0.5 w-5 h-5 text-emerald-500 bg-black border-slate-600 rounded accent-emerald-500 cursor-pointer" onclick="event.stopPropagation(); updateProgress()">
+                            <label class="text-slate-300 text-xs leading-relaxed cursor-pointer select-none">Veículos isca e viaturas com mais tempo de pátio mapeadas para ganhar destaque físico no showroom.</label>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Calculadora Avançada -->
+                <div class="lg:col-span-7 bg-[#050b08] border border-orange-500/30 rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-orange-600/10 rounded-full blur-[80px] pointer-events-none"></div>
+                    
+                    <div class="flex items-center gap-3 border-b border-[#1a382a] pb-6 mb-8">
+                        <div class="w-10 h-10 bg-orange-600/20 text-orange-500 rounded-xl flex items-center justify-center text-xl font-black">📊</div>
+                        <div>
+                            <h3 class="text-xl font-black uppercase tracking-wide text-white italic">Calculadora Avançada de Investimento</h3>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Simule o orçamento real além da regra dos R$100</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-8 relative z-10">
+                        <div>
+                            <div class="flex justify-between text-xs font-black text-slate-300 uppercase tracking-widest mb-3">
+                                <span>A. Meta de Carros Vendidos</span>
+                                <span class="text-orange-400 text-lg" id="val-meta-cars">10 carros</span>
+                            </div>
+                            <input type="range" id="input-meta-cars" min="1" max="50" value="10" oninput="calculateAdvancedBudget()" class="w-full h-2 bg-[#1a382a] rounded-lg appearance-none cursor-pointer accent-orange-500">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-black text-slate-300 uppercase tracking-widest mb-3">
+                                <span>B. Custo por Lead (CPL) Esperado</span>
+                                <span class="text-orange-400 text-lg" id="val-cpl-cost">R$ 15,00</span>
+                            </div>
+                            <input type="range" id="input-cpl-cost" min="2" max="50" value="15" oninput="calculateAdvancedBudget()" class="w-full h-2 bg-[#1a382a] rounded-lg appearance-none cursor-pointer accent-orange-500">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs font-black text-slate-300 uppercase tracking-widest mb-3">
+                                <span>C. Taxa de Fecho da Equipa de Vendas</span>
+                                <span class="text-orange-400 text-lg" id="val-conv-rate">5%</span>
+                            </div>
+                            <input type="range" id="input-conv-rate" min="1" max="25" value="5" oninput="calculateAdvancedBudget()" class="w-full h-2 bg-[#1a382a] rounded-lg appearance-none cursor-pointer accent-orange-500">
+                        </div>
+                    </div>
+
+                    <div class="bg-[#0a1812] border border-orange-500/20 mt-10 p-6 md:p-8 rounded-2xl relative z-10 glow-orange">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-[#050b08] p-4 rounded-xl border border-[#1a382a]">
+                                <span class="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Leads Necessários (SDR)</span>
+                                <strong class="text-white text-2xl" id="out-leads-needed">200</strong>
+                            </div>
+                            <div class="bg-[#050b08] p-4 rounded-xl border border-[#1a382a]">
+                                <span class="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Custo de Aquisição (CAC)</span>
+                                <strong class="text-orange-400 text-2xl" id="out-cac-real">R$ 300,00</strong>
+                                <span class="text-[10px] text-slate-500">/ carro</span>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center bg-gradient-to-br from-orange-600/20 to-transparent border border-orange-500/30 p-5 rounded-xl">
+                            <span class="block text-xs text-orange-400 font-black uppercase tracking-widest mb-2">Orçamento Total de Tráfego:</span>
+                            <span class="text-4xl md:text-5xl font-black text-white drop-shadow-lg" id="out-total-budget">R$ 3.000,00</span>
+                        </div>
+                    </div>
+                    
+                    <p class="text-[10px] text-slate-500 leading-relaxed mt-6 italic text-center relative z-10">
+                        Nota Estratégica: A regra de R$ 100/carro assume um CPL muito baixo (remarketing/urgência alta) ou taxas de fecho extraordinárias (>10%). Utilize o simulador para garantir que a verba não acaba a meio do fim de semana caso o lead esteja mais caro na sua cidade.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-[#050b08] border-t border-[#1a382a] mt-12 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">G30 Criativos Studio | Inteligência de Dados & Conversão</p>
+        </div>
+    </footer>
+
+    <!-- Botão Flutuante App G30.ai -->
+    <a href="https://app.g30.ai/" target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 z-[100] flex items-center gap-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white px-5 py-3.5 rounded-full font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,88,12,0.4)] hover:shadow-[0_0_30px_rgba(234,88,12,0.6)] transition-all duration-300 hover:-translate-y-1 group">
+        <span class="text-lg group-hover:animate-pulse">🧠</span>
+        <span class="hidden md:inline-block"> Clique aqui G30.ai</span>
+        <span class="md:hidden">G30.ai</span>
+    </a>
+
+    <script>
+        // --- NAVEGAÇÃO ENTRE ABAS ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hide'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-orange-600', 'text-white', 'shadow-md');
+                btn.classList.add('text-slate-400');
+            });
+
+            document.getElementById(tabId).classList.remove('hide');
+            const activeBtn = document.getElementById('btn-' + tabId.replace('tab-', ''));
+            activeBtn.classList.remove('text-slate-400');
+            activeBtn.classList.add('bg-orange-600', 'text-white', 'shadow-md');
+        }
+
+        // --- GRÁFICO (Chart.js) ---
+        function initChart() {
+            const ctx = document.getElementById('contentMixChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Tráfego Pago (Anúncios)', 'Orgânico (Vida Real)'],
+                    datasets: [{
+                        data: [50, 50],
+                        backgroundColor: ['#ea580c', '#a855f7'],
+                        borderWidth: 0,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                font: { family: 'Inter', size: 12, weight: 'bold' },
+                                color: '#cbd5e1'
+                            }
+                        }
+                    },
+                    cutout: '75%'
+                }
+            });
+        }
+
+        // --- FASES DA LINHA DO TEMPO ---
+        const phaseData = [
+            {
+                title: "Fase 1: Aquecimento e Antecipação Estratégica",
+                dates: "15 a 21 de Junho",
+                objective: "Provocar curiosidade absurda e atrair a primeira camada de leads frios para o radar do stand.",
+                creatives: [
+                    { type: "Tráfego Pago", name: "Vídeo Institucional", hook: '"Fechamos uma parceria histórica e fomos escolhidos entre as melhores lojas..."', content: "Foco total na apresentação das vantagens institucionais acordadas com o C6 Bank." },
+                    { type: "Orgânico", name: "Prova Social Diária", content: "Registe a entrega das chaves de clientes da semana passada. Mostre que o pátio é confiável." }
+                ]
+            },
+            {
+                title: "Fase 2: Contagem Regressiva e Pressão",
+                dates: "22 a 24 de Junho",
+                objective: "Lotação máxima da agenda de visitas do showroom físico.",
+                creatives: [
+                    { type: "Tráfego Pago", name: "Isca: Boi de Piranha", hook: '"Se você procura espaço e segurança, preste muita atenção neste lote..."', content: "Apresente 1 ou 2 modelos com uma chamada de entrada agressiva para prender o clique." },
+                    { type: "Orgânico", name: "Alerta de Cronómetro", content: '"Faltam 48 horas. As fichas pré-aprovadas já começaram a ser digitadas no sistema."' }
+                ]
+            },
+            {
+                title: "Fase 3: O Feirão ao Vivo (FOMO Massivo)",
+                dates: "25, 26 e 27 de Junho",
+                objective: "Exibir pátio cheio, gerar senso instantâneo de perda e fechar contratos na mesa.",
+                creatives: [
+                    { type: "Orgânico", name: "Portas Abertas", content: "Grave a loja cheia de manhã: 'Já começou, os primeiros carros já saíram com placa de vendido!'" },
+                    { type: "Orgânico", name: "Oferta Relâmpago Crúa", content: "Carro com maior tempo de stock direto no pátio: 'Quem chegar primeiro leva com bónus exclusivo.'" },
+                    { type: "Tráfego Pago", name: "Pressão de Última Chamada", hook: '"Amanhã o sistema desliga e as taxas voltam ao normal. É agora ou nunca..."', content: "Chamada de ação violenta direcionando os atrasados para o plantão de SDR da noite." }
+                ]
+            },
+            {
+                title: "Fase 4: Repescagem e Fecho de Mês",
+                dates: "28 a 30 de Junho",
+                objective: "Recuperar leads que demonstraram interesse mas não visitaram o stand.",
+                creatives: [
+                    { type: "Misto", name: "Sobras de Lote", content: '"O feirão quebrou recordes, mas conseguimos estender as taxas para 3 oportunidades que restaram."' }
+                ]
+            }
+        ];
+
+        function showPhase(index) {
+            document.querySelectorAll('.phase-btn').forEach((btn, i) => {
+                if (i === index) {
+                    btn.classList.add('border-orange-500', 'bg-[#0a1812]', 'glow-orange');
+                    btn.classList.remove('border-[#1a382a]', 'bg-[#050b08]');
+                    btn.children[0].classList.add('text-orange-500');
+                    btn.children[0].classList.remove('text-slate-500');
+                    btn.children[1].classList.add('text-white');
+                    btn.children[1].classList.remove('text-slate-300');
+                } else {
+                    btn.classList.remove('border-orange-500', 'bg-[#0a1812]', 'glow-orange');
+                    btn.classList.add('border-[#1a382a]', 'bg-[#050b08]');
+                    btn.children[0].classList.remove('text-orange-500');
+                    btn.children[0].classList.add('text-slate-500');
+                    btn.children[1].classList.remove('text-white');
+                    btn.children[1].classList.add('text-slate-300');
+                }
+            });
+
+            const data = phaseData[index];
+            const panel = document.getElementById('phase-detail-panel');
+            
+            let creativesHtml = '';
+            data.creatives.forEach(c => {
+                let badgeStyle = c.type === 'Tráfego Pago' ? 'bg-orange-600/20 text-orange-400 border-orange-500/30' : 'bg-purple-600/20 text-purple-400 border-purple-500/30';
+                let hookStyle = c.hook ? `<p class="mt-3 text-xs text-slate-400"><strong class="text-white">Gancho (3s):</strong> <em class="italic text-orange-200">${c.hook}</em></p>` : '';
+                
+                creativesHtml += `
+                    <div class="p-5 border border-[#1a382a] rounded-xl bg-[#050b08] hover:border-orange-500/20 transition">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                            <h4 class="font-bold text-white text-sm">🎥 ${c.name}</h4>
+                            <span class="text-[9px] px-3 py-1 rounded-full border font-black uppercase tracking-widest w-max ${badgeStyle}">${c.type}</span>
+                        </div>
+                        ${hookStyle}
+                        <p class="mt-2 text-xs text-slate-500 leading-relaxed"><strong class="text-slate-300">Diretriz:</strong> ${c.content}</p>
+                    </div>
+                `;
+            });
+
+            panel.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div>
+                        <div class="inline-block px-3 py-1 rounded-md bg-[#133325] text-emerald-400 border border-[#1a382a] text-[10px] font-black uppercase tracking-widest mb-3">⏱️ ${data.dates}</div>
+                        <h3 class="text-2xl font-black text-white uppercase italic tracking-tight">${data.title}</h3>
+                    </div>
+                    <div class="bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-r-xl border-y border-r border-[#1a382a]">
+                        <p class="text-sm text-blue-200 leading-relaxed"><strong class="font-black tracking-wider uppercase text-blue-400 text-[10px] block mb-1">Estratégia do Funil:</strong> ${data.objective}</p>
+                    </div>
+                    <div class="space-y-4">
+                        ${creativesHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Inteligência do Gideão ( https://app.g30.ai/ ) ---
+        const generatorScripts = {
+            "Hatch": {
+                emocao: "Procura economia extrema para as viagens diárias em família? Este hatch fantástico acabou de chegar em parceria especial com o Mega Feirão G30.",
+                escassez: "ALERTA DE STOCK! O compacto mais desejado com o menor consumo da categoria está liberado no Mega Feirão G30. Apenas uma unidade nestas condições!",
+                preco: "Não vai encontrar um negócio destes noutro lugar! Citadino completo com entrada super facilitada e a melhor taxa do mercado apenas para quem fechar neste fim de semana."
+            },
+            "SUV": {
+                emocao: "Chegou a hora de realizar o sonho do primeiro SUV na garagem. Espaço, segurança e imponência para os passeios com os miúdos.",
+                escassez: "ÚLTIMA CHANCE! Os SUVs do nosso lote promocional estão a sair a cada hora. Temos esta unidade impecável com condições que o banco só libertou para o G30.",
+                preco: "Um SUV de luxo com parcelas de carro popular? Sim, é possível! A diretoria enlouqueceu as taxas apenas para este evento."
+            },
+            "Sedan": {
+                emocao: "O sedan premium de maior prestígio está com condições inacreditáveis. Luxo, espaço de bagageira e sofisticação para as suas viagens longas.",
+                escassez: "Achar um sedan com esta procedência e taxa de feirão é como ganhar na loteria. O nosso stock premium está quase a zero!",
+                preco: "Abaixámos os preços da tabela oficial! Sedan completo, revisionado e com garantia, com um bónus de retoma para o seu usado."
+            },
+            "Picape": {
+                emocao: "A picape robusta que o seu negócio precisa. Mais do que um carro, é o parceiro de trabalho que vai ajudar a sua empresa a faturar mais.",
+                escassez: "Ferramenta de trabalho impecável. É a única viatura deste modelo no pátio com aprovação rápida para CNPJ/Empresas. Quem testar primeiro, leva!",
+                preco: "Desconto agressivo para trabalhadores e frotistas! Coloque a sua picape na rua hoje mesmo com entrada de R$ 7.500."
+            }
+        };
+
+        function updateGeneratedScript() {
+            const model = document.getElementById('builderModel').value;
+            const store = document.getElementById('builderStore').value || "Nossa Loja";
+            const tone = document.getElementById('builderTone').value;
+
+            const baseText = generatorScripts[model][tone];
+            
+            document.getElementById('generatedScriptText').innerHTML = `"${baseText} Clique no link ou botão abaixo e fale com a nossa equipe aqui na <span class='text-orange-500 font-bold'>${store}</span> antes que o feirão acabe!"`;
+        }
+
+        // --- QUADRANTE MÉTODO G30 ---
+        const g30Forces = {
+            meta: {
+                title: "Força: Alinhamento de Meta",
+                tagline: "Tração realista de metas comerciais para o pátio",
+                insights: [
+                    "Construa a meta do feirão baseando-se rigorosamente no histórico. Vender acima da média exige infraestrutura, não apenas desejo.",
+                    "Divida a responsabilidade com a equipa: do SDR ao preparador, todos jogam o mesmo campeonato e conhecem os números.",
+                    "Proteja as margens: giro rápido sem lucro destrói a saúde financeira."
+                ]
+            },
+            plano: {
+                title: "Força: Estrutura de Plano",
+                tagline: "Divisão tática e blindagem contra sazonalidade",
+                insights: [
+                    "A metodologia divide o ano em blocos trimestrais. Este feirão serve para carimbar o topo de faturação.",
+                    "Faça revisões e alterações imediatas de rota de marketing no final do evento.",
+                    "Não permita que eventos sazonais sirvam de muleta para letargia de vendas da equipa."
+                ]
+            },
+            implementacao: {
+                title: "Força: Implementação Prática",
+                tagline: "Aceleração ativa do motor de captação (SDR)",
+                insights: [
+                    "Uma equipa dedicada de pré-vendas (SDR) é obrigatória para qualificar leads e encher a agenda do vendedor físico.",
+                    "Monitore o volume: um SDR opera com cerca de 100 tentativas de contacto diárias.",
+                    "O vendedor de exposição não caça leads frios na internet; ele deve receber agendamentos confirmados."
+                ]
+            },
+            controle: {
+                title: "Força: Controlo Analítico",
+                tagline: "Inteligência de reposição e giro do stand",
+                insights: [
+                    "Aponte sempre a um giro operacional de 60% a 70% de todo o pátio ao longo do mês.",
+                    "O tempo de estacionamento queima caixa através de desvalorização e manutenção passiva.",
+                    "Poupe inteligentemente na base: cada cêntimo poupado na preparação representa lucro direto na última linha."
+                ]
+            }
+        };
+
+        function selectG30Force(key) {
+            ['meta', 'plano', 'implementacao', 'controle'].forEach(k => {
+                const btn = document.getElementById('quad-' + k);
+                if (k === key) {
+                    btn.classList.add('border-orange-500', 'bg-[#133325]');
+                    btn.classList.remove('border-[#1a382a]', 'bg-black/50');
+                    btn.children[0].classList.add('text-orange-400');
+                    btn.children[0].classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('border-orange-500', 'bg-[#133325]');
+                    btn.classList.add('border-[#1a382a]', 'bg-black/50');
+                    btn.children[0].classList.remove('text-orange-400');
+                    btn.children[0].classList.add('text-slate-400');
+                }
+            });
+
+            const data = g30Forces[key];
+            const html = data.insights.map(i => `<li class="flex items-start gap-2"><span class="text-orange-500 font-black mt-0.5">➔</span> <span class="text-slate-300 text-xs leading-relaxed">${i}</span></li>`).join('');
+            
+            document.getElementById('g30-force-content').innerHTML = `
+                <div class="fade-in">
+                    <h4 class="text-2xl font-black text-white uppercase italic tracking-tight mb-1">${data.title}</h4>
+                    <p class="text-[10px] text-orange-500 font-black uppercase tracking-widest mb-6">${data.tagline}</p>
+                    <ul class="space-y-4 bg-[#0a1812] p-6 rounded-2xl border border-[#1a382a] shadow-inner">${html}</ul>
+                </div>
+            `;
+        }
+
+        // --- MAPA MENTAL ---
+        const mindmapData = [
+            { title: "Funil: Chamada Específica", content: "\"Esta carrinha tem mala de 500 litros e faróis LED. Exclusiva no feirão. Clique agora.\"", tip: "Mostre o detalhe fisicamente na câmara." },
+            { title: "Funil: Chamada por Perfil", content: "\"Trabalhador independente? Temos aprovação facilitada sem burocracias pesadas. Condição Feirão G30.\"", tip: "Foque na dor do cliente (burocracia, falta de crédito)." },
+            { title: "Funil: Foco na Emoção Crítica", content: "\"Amanhã este lote desaparece. A sua família merece este upgrade. Clique no WhatsApp agora.\"", tip: "Voz firme, urgência pesada." }
+        ];
+
+        function selectMindmapNode(index) {
+            document.querySelectorAll('.mindmap-node').forEach((el, i) => {
+                if(i === index) el.classList.add('border-purple-500', 'bg-purple-900/10');
+                else el.classList.remove('border-purple-500', 'bg-purple-900/10');
+            });
+
+            const data = mindmapData[index];
+            document.getElementById('mindmap-script-panel').innerHTML = `
+                <div class="fade-in">
+                    <h5 class="font-black text-purple-400 text-xs uppercase tracking-widest mb-3 border-b border-purple-500/20 pb-2 flex items-center gap-2"><span>⚡</span> ${data.title}</h5>
+                    <div class="text-white italic text-sm leading-relaxed mb-4">${data.content}</div>
+                    <div class="text-[10px] text-slate-400"><strong class="text-white uppercase tracking-wider">Diretriz:</strong> ${data.tip}</div>
+                </div>
+            `;
+        }
+
+        // --- CHECKLIST ---
+        function toggleCheck(id) {
+            document.getElementById(id).checked = !document.getElementById(id).checked;
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const checks = document.querySelectorAll('#checklist-items input[type="checkbox"]');
+            let count = 0; checks.forEach(c => { if(c.checked) count++; });
+            const pct = Math.round((count / checks.length) * 100);
+            
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('progress-text').innerText = pct + '% CONCLUÍDO';
+            
+            if(pct === 100) {
+                document.getElementById('progress-bar').classList.replace('from-emerald-600', 'from-orange-600');
+                document.getElementById('progress-bar').classList.replace('to-emerald-400', 'to-orange-400');
+                document.getElementById('progress-text').classList.replace('text-emerald-400', 'text-orange-400');
+                document.getElementById('progress-text').classList.replace('bg-emerald-500/20', 'bg-orange-500/20');
+                document.getElementById('progress-text').classList.replace('border-emerald-500/20', 'border-orange-500/20');
+            } else {
+                document.getElementById('progress-bar').classList.replace('from-orange-600', 'from-emerald-600');
+                document.getElementById('progress-bar').classList.replace('to-orange-400', 'to-emerald-400');
+                document.getElementById('progress-text').classList.replace('text-orange-400', 'text-emerald-400');
+                document.getElementById('progress-text').classList.replace('bg-orange-500/20', 'bg-emerald-500/20');
+                document.getElementById('progress-text').classList.replace('border-orange-500/20', 'border-emerald-500/20');
+            }
+        }
+
+        // --- CALCULADORA AVANÇADA ---
+        function calculateAdvancedBudget() {
+            const cars = parseInt(document.getElementById('input-meta-cars').value);
+            const cpl = parseFloat(document.getElementById('input-cpl-cost').value);
+            const conv = parseInt(document.getElementById('input-conv-rate').value) / 100;
+
+            document.getElementById('val-meta-cars').innerText = cars;
+            document.getElementById('val-cpl-cost').innerText = "R$ " + cpl.toFixed(2).replace('.', ',');
+            document.getElementById('val-conv-rate').innerText = (conv * 100) + "%";
+
+            // Lógica Central Requisitada
+            const leads = Math.ceil(cars / conv);
+            const budget = leads * cpl;
+            const cac = budget / cars;
+
+            const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+            
+            document.getElementById('out-leads-needed').innerText = leads;
+            document.getElementById('out-cac-real').innerText = fmt.format(cac);
+            document.getElementById('out-total-budget').innerText = fmt.format(budget);
+        }
+
+        // --- COPIAR TEXTO ---
+        function copySpecificText(id) {
+            const txt = document.getElementById(id).innerText;
+            copyToClip(txt, 'Roteiro Express copiado! 📋');
+        }
+        function copyRawText(txt) {
+            copyToClip(txt, 'Gatilho copiado! 📋');
+        }
+        function copyToClip(txt, msg) {
+            const ta = document.createElement('textarea'); ta.value = txt;
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); document.body.removeChild(ta);
+            
+            const toast = document.getElementById('toastNotification');
+            document.getElementById('toastText').innerText = msg;
+            toast.classList.replace('translate-y-[-100px]', 'translate-y-0');
+            toast.classList.replace('opacity-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.replace('translate-y-0', 'translate-y-[-100px]');
+                toast.classList.replace('opacity-100', 'opacity-0');
+            }, 3000);
+        }
+
+        // --- INICIALIZAÇÃO ---
+        window.onload = () => {
+            initChart();
+            showPhase(0);
+            updateGeneratedScript();
+            selectG30Force('meta');
+            selectMindmapNode(0);
+            updateProgress();
+            calculateAdvancedBudget();
+        };
+    </script>
+</body>
+</html>
